@@ -4,10 +4,11 @@ import time
 import pyaudiowpatch as pyaudio
 from datetime import datetime
 import wave
+from pydub import AudioSegment
 
 class teamsRecorder:
-    def __init__(self):
 
+    def __init__(self):
         # Set Basic
         # Get the active user's home directory path
         home_dir = os.path.expanduser("~")
@@ -25,10 +26,10 @@ class teamsRecorder:
         self.audio = None
 
         # Recording Parameters
-        self.FORMAT = pyaudio.paInt8
+        self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 16000
-        self.CHUNK = 512
+        self.CHUNK = 1024
         self.default_speakers = None
 
         # MIc
@@ -78,7 +79,7 @@ class teamsRecorder:
                     last_pos = f.tell()
                     # print("last",last_pos)
 
-            print("last pos",last_pos)
+            # print("last pos",last_pos)
 
             with open(self.lastLine, "w") as f:
                 f.write(str(last_pos))
@@ -107,6 +108,25 @@ class teamsRecorder:
             except Exception as e:
                 print(f"Error recording Speaker: {str(e)}")
                 pass
+
+    def mix(self,mic,spk):
+        mic_recording = AudioSegment.from_wav(mic)
+        spk_recording = AudioSegment.from_wav(spk)
+        mixed_audio = mic_recording.overlay(spk_recording,position=1000)
+
+        sp_mic = mic.split('_')[1:]
+        filename = 'Final'
+        for w in sp_mic:
+            filename = filename + "_" + w
+
+
+        output_path = os.path.join(self.uploadPath,filename)
+        mixed_audio.export(output_path,format="wav")
+
+        os.remove(mic)
+        os.remove(spk)
+
+
 
     def set_call_status(self):
         # set starting
@@ -154,11 +174,11 @@ class teamsRecorder:
                                         print("Default device not found")
 
                                 self.default_speakers = default_speakers
-                                self.out_stream = self.audio.open(format=pyaudio.paInt8,
+                                self.out_stream = self.audio.open(format=self.FORMAT,
                                                                   channels=default_speakers["maxInputChannels"],
                                                                   rate=int(default_speakers["defaultSampleRate"]),
                                                                   frames_per_buffer=pyaudio.get_sample_size(
-                                                                      pyaudio.paInt8),
+                                                                      self.FORMAT),
                                                                   input=True,
                                                                   input_device_index=default_speakers["index"],
                                                                   )
@@ -172,13 +192,13 @@ class teamsRecorder:
                                 # MIC FILE
                                 self.mic_wf = wave.open(self.mic_file_path, 'wb')
                                 self.mic_wf.setnchannels(self.CHANNELS)
-                                self.mic_wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt8))
+                                self.mic_wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
                                 self.mic_wf.setframerate(self.RATE)
 
                                 # Speaker File
                                 self.speaker_wf = wave.open(self.speaker_file_path, 'wb')
                                 self.speaker_wf.setnchannels(self.default_speakers["maxInputChannels"])
-                                self.speaker_wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt8))
+                                self.speaker_wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
                                 self.speaker_wf.setframerate(int(self.default_speakers["defaultSampleRate"]))
 
                                 self.recording_in_progress = True
@@ -199,16 +219,25 @@ class teamsRecorder:
                                 self.mic_wf.close()
                                 self.speaker_wf.close()
 
-                                print("Call Ended")
+                                mix_th = threading.Thread(target=self.mix, args=(self.mic_file_path,self.speaker_file_path,))
+                                mix_th.start()
+
                 time.sleep(2)
             except Exception as e:
                 print("error2",e)
                 pass
 
     def start(self):
-        t1 = threading.Thread(target=self.set_call_status)
-        t1.start()
-        t1.join()
+        main_th = threading.Thread(target=self.set_call_status)
+        main_th.start()
+
+        mic_th = threading.Thread(target=self.start_recording_mic)
+        mic_th.start()
+
+        spk_th = threading.Thread(target=self.start_recording_speaker)
+        spk_th.start()
+
+        main_th.join()
 
 t = teamsRecorder()
 t.start()
