@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 
 class teamsRecorder:
     def __init__(self):
@@ -40,15 +41,22 @@ class teamsRecorder:
 
             # Get new lines
             with open(self.path, "r") as f:
-                # getting the file handle position
-                last_pos_file = f.seek(0, os.SEEK_END)
-
-                if last_pos_file < last_pos:
-                    f.seek(last_pos_file)
-
+                try:
+                    f.seek(0, 2)
+                    # getting the file handle position
+                    last_pos_file = f.tell()
+                    # f.seek(0)
+                    if last_pos_file < last_pos:
+                        s = f.seek(last_pos_file)
+                    else:
+                        s = f.seek(last_pos)
+                    # print("seek",s)
+                finally:
                     new_lines = f.readlines()
                     last_pos = f.tell()
                     # print("last",last_pos)
+
+            print("last pos",last_pos)
 
             with open(self.lastLine, "w") as f:
                 f.write(str(last_pos))
@@ -57,7 +65,6 @@ class teamsRecorder:
         except:
             # print("error")
             return False, None
-
 
     def set_call_status(self):
         # set starting
@@ -72,6 +79,7 @@ class teamsRecorder:
                 status, new_lines = self.check_for_call()
                 if status:
                     # Process the new lines
+                    # print(new_lines)
                     for line in new_lines:
                         # Do something with each new line
                         if "name: desktop_call_state_change_send" in line:
@@ -79,6 +87,7 @@ class teamsRecorder:
                                 print("Call started")
                             else:
                                 print("Call Ended")
+                time.sleep(2)
             except Exception as e:
                 print("error2",e)
                 pass
