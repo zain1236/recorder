@@ -5,7 +5,7 @@ import pyaudiowpatch as pyaudio
 from datetime import datetime
 import wave
 from pydub import AudioSegment
-
+import requests
 class teamsRecorder:
 
     def __init__(self):
@@ -19,6 +19,7 @@ class teamsRecorder:
         self.path = os.path.join(path1,'logs.txt')
         self.erpIdPath = os.path.join(path1, 'erpid.txt')
         self.lastLine = os.path.join(path1,'lastline.txt')
+        self.err_log = open(os.path.join(path1,'errlog.txt'), "w")
         self.user_name = None
 
         # Recording start
@@ -29,7 +30,7 @@ class teamsRecorder:
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 16000
-        self.CHUNK = 1024
+        self.CHUNK = 512
         self.default_speakers = None
 
         # MIc
@@ -53,7 +54,8 @@ class teamsRecorder:
             with open(local_log_file, "w") as f:
                 f.write(str(last_pos))
             return True
-        except:
+        except Exception as e:
+            self.err_log.write(f"Error Set start Speaker: {str(e)} \n")
             return False
 
     def check_for_call(self):
@@ -85,48 +87,70 @@ class teamsRecorder:
                 f.write(str(last_pos))
 
             return True, new_lines
-        except:
+        except Exception as e:
+            self.err_log.write(f"Error Check Call: {str(e)} \n")
             # print("error")
             return False, None
 
     def start_recording_mic(self):
         while True:
             try:
-                if self.recording_in_progress:
+                if self.recording_in_progress and self.mic_wf:
                     data = self.in_stream.read(self.CHUNK)
                     self.mic_wf.writeframes(data)
             except Exception as e:
+                self.err_log.write(f"Error recording Speaker: {str(e)} \n")
                 print(f"Error recording microphone: {str(e)}")
                 pass
 
     def start_recording_speaker(self):
         while True:
             try:
-                if self.recording_in_progress:
+                if self.recording_in_progress and self.speaker_wf:
                     data = self.out_stream.read(self.CHUNK)
                     self.speaker_wf.writeframes(data)
             except Exception as e:
+                self.err_log.write(f"Error recording Speaker: {str(e)} \n")
                 print(f"Error recording Speaker: {str(e)}")
                 pass
 
     def mix(self,mic,spk):
-        mic_recording = AudioSegment.from_wav(mic)
-        spk_recording = AudioSegment.from_wav(spk)
-        mixed_audio = mic_recording.overlay(spk_recording,position=1000)
+        try:
+            mic_recording = AudioSegment.from_wav(mic)
+            spk_recording = AudioSegment.from_wav(spk)
+            mixed_audio = mic_recording.overlay(spk_recording,position=1000)
 
-        sp_mic = mic.split('_')[1:]
-        filename = 'Final'
-        for w in sp_mic:
-            filename = filename + "_" + w
+            sp_mic = mic.split('_')[1:]
 
-
-        output_path = os.path.join(self.uploadPath,filename)
-        mixed_audio.export(output_path,format="wav")
-
-        os.remove(mic)
-        os.remove(spk)
+            fh = open(self.erpIdPath, 'r')
+            self.user_name = fh.readlines()[0].strip()
+            fh.close()
+            filename = self.user_name
+            for w in sp_mic:
+                filename = filename + "_" + w
 
 
+            output_path = os.path.join(self.uploadPath,filename)
+            mixed_audio.export(output_path,format="wav")
+
+            os.remove(mic)
+            os.remove(spk)
+
+            print("sending")
+            url = 'http://182.180.54.158:10202/upload'
+            sound_file_path = output_path
+            if os.path.exists(output_path):
+                f2 = open(sound_file_path, 'rb')
+                data = {'file': f2}
+                response = requests.post(url, files=data)
+                print(response.text)
+                f2.close()
+                if response.text == "File saved":
+                    os.remove(sound_file_path)
+
+
+        except Exception as e:
+            self.err_log.write(f"Error Mixing : {str(e)} \n")
 
     def set_call_status(self):
         # set starting
@@ -224,6 +248,7 @@ class teamsRecorder:
 
                 time.sleep(2)
             except Exception as e:
+                self.err_log.write(f"Error in main : {str(e)} \n")
                 print("error2",e)
                 pass
 
