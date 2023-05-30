@@ -6,6 +6,8 @@ from datetime import datetime
 import wave
 from pydub import AudioSegment
 import requests
+
+
 class teamsRecorder:
 
     def __init__(self):
@@ -19,7 +21,7 @@ class teamsRecorder:
         self.path = os.path.join(path1,'logs.txt')
         self.erpIdPath = os.path.join(path1, 'erpid.txt')
         self.lastLine = os.path.join(path1,'lastline.txt')
-        self.err_log = open(os.path.join(path1,'errlog.txt'), "w")
+        # self.err_log = open(os.path.join(path1,'errlog.txt'), "w")
         self.user_name = None
 
         # Recording start
@@ -37,11 +39,14 @@ class teamsRecorder:
         self.in_stream = None
         self.mic_file_path = None
         self.mic_wf = None
+        self.in_mic = False
 
         # SPeaker
         self.out_stream = None
         self.speaker_file_path = None
         self.speaker_wf = None
+        self.in_spk = False
+
 
 
     def set_start_position(self, local_log_file):
@@ -55,7 +60,7 @@ class teamsRecorder:
                 f.write(str(last_pos))
             return True
         except Exception as e:
-            self.err_log.write(f"Error Set start Speaker: {str(e)} \n")
+            # self.err_log.write(f"Error Set start Speaker: {str(e)} \n")
             return False
 
     def check_for_call(self):
@@ -88,7 +93,7 @@ class teamsRecorder:
 
             return True, new_lines
         except Exception as e:
-            self.err_log.write(f"Error Check Call: {str(e)} \n")
+            # self.err_log.write(f"Error Check Call: {str(e)} \n")
             # print("error")
             return False, None
 
@@ -96,10 +101,12 @@ class teamsRecorder:
         while True:
             try:
                 if self.recording_in_progress and self.mic_wf:
+                    self.in_mic = True
                     data = self.in_stream.read(self.CHUNK)
                     self.mic_wf.writeframes(data)
+                    self.in_mic = False
             except Exception as e:
-                self.err_log.write(f"Error recording Speaker: {str(e)} \n")
+                # self.err_log.write(f"Error recording Speaker: {str(e)} \n")
                 print(f"Error recording microphone: {str(e)}")
                 pass
 
@@ -107,18 +114,27 @@ class teamsRecorder:
         while True:
             try:
                 if self.recording_in_progress and self.speaker_wf:
+                    self.in_spk = True
                     data = self.out_stream.read(self.CHUNK)
                     self.speaker_wf.writeframes(data)
+                    self.in_spk = False
             except Exception as e:
-                self.err_log.write(f"Error recording Speaker: {str(e)} \n")
+                # self.err_log.write(f"Error recording Speaker: {str(e)} \n")
                 print(f"Error recording Speaker: {str(e)}")
                 pass
+
+    def compress_audio(self,audio_path, output_path, format='wav', bitrate='16k'):
+        audio = AudioSegment.from_file(audio_path)
+        compressed_audio = audio.export(output_path, format=format, bitrate=bitrate)
+        return compressed_audio
 
     def mix(self,mic,spk):
         try:
             mic_recording = AudioSegment.from_wav(mic)
             spk_recording = AudioSegment.from_wav(spk)
-            mixed_audio = mic_recording.overlay(spk_recording,position=1000)
+
+            # Adjust the length of the audio files if needed
+            mixed_audio = mic_recording.overlay(spk_recording)
 
             sp_mic = mic.split('_')[1:]
 
@@ -131,7 +147,7 @@ class teamsRecorder:
 
 
             output_path = os.path.join(self.uploadPath,filename)
-            mixed_audio.export(output_path,format="wav")
+            mixed_audio.export(output_path,format="wav",bitrate="16k")
 
             os.remove(mic)
             os.remove(spk)
@@ -150,7 +166,8 @@ class teamsRecorder:
 
 
         except Exception as e:
-            self.err_log.write(f"Error Mixing : {str(e)} \n")
+            print("error mixing",e)
+            # self.err_log.write(f"Error Mixing : {str(e)} \n")
 
     def set_call_status(self):
         # set starting
@@ -169,9 +186,9 @@ class teamsRecorder:
                     for line in new_lines:
                         # Do something with each new line
                         if "name: desktop_call_state_change_send" in line:
+                            # print(line)
                             if "isOngoing: true" in line:
                                 print("Call started")
-
 
                                 self.audio = pyaudio.PyAudio()
 
@@ -226,9 +243,13 @@ class teamsRecorder:
                                 self.speaker_wf.setframerate(int(self.default_speakers["defaultSampleRate"]))
 
                                 self.recording_in_progress = True
+
                             else:
                                 print("Call Ended")
                                 self.recording_in_progress = None
+
+                                while self.in_mic or self.in_spk:
+                                    continue
 
                                 # end mic
                                 self.in_stream.stop_stream()
@@ -246,9 +267,9 @@ class teamsRecorder:
                                 mix_th = threading.Thread(target=self.mix, args=(self.mic_file_path,self.speaker_file_path,))
                                 mix_th.start()
 
-                time.sleep(2)
+                time.sleep(1)
             except Exception as e:
-                self.err_log.write(f"Error in main : {str(e)} \n")
+                # self.err_log.write(f"Error in main : {str(e)} \n")
                 print("error2",e)
                 pass
 
@@ -256,13 +277,14 @@ class teamsRecorder:
         main_th = threading.Thread(target=self.set_call_status)
         main_th.start()
 
+        # Threads
         mic_th = threading.Thread(target=self.start_recording_mic)
         mic_th.start()
-
         spk_th = threading.Thread(target=self.start_recording_speaker)
         spk_th.start()
 
         main_th.join()
+
 
 t = teamsRecorder()
 t.start()

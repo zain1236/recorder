@@ -18,6 +18,7 @@ def check_process_running(name):
          return True
    return False
 
+
 def Check_rec_running():
    while True:
       try:
@@ -27,6 +28,7 @@ def Check_rec_running():
          time.sleep(3)
       except Exception as e:
          pass
+
 
 if not os.path.exists(erpIdPath):
     with open(erpIdPath, 'w') as fp:
@@ -42,6 +44,7 @@ window.title("Globallink")
 window.resizable(width=False,height=False)
 window.winfo_toplevel()
 
+
 def getId(path):
    Fh = open(path, 'r')
    id = Fh.readlines()
@@ -51,6 +54,7 @@ def getId(path):
 
 def close_win():
    window.destroy()
+
 
 def disable_event():
    pass

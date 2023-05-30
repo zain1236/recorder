@@ -56,7 +56,7 @@ class teamsRecorder:
                     last_pos = f.tell()
                     # print("last",last_pos)
 
-            print("last pos",last_pos)
+            # print("last pos",last_pos)
 
             with open(self.lastLine, "w") as f:
                 f.write(str(last_pos))
@@ -87,7 +87,7 @@ class teamsRecorder:
                                 print("Call started")
                             else:
                                 print("Call Ended")
-                time.sleep(2)
+                # time.sleep(2)
             except Exception as e:
                 print("error2",e)
                 pass
