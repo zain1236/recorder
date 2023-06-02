@@ -7,10 +7,6 @@ import psutil
 import time
 
 
-home_dir = os.path.expanduser("~")
-path = home_dir + "\AppData\Roaming\Microsoft\Teams"
-erpIdPath = os.path.join(path,'erpid.txt')
-
 
 def check_process_running(name):
    for p in psutil.process_iter():
@@ -28,6 +24,12 @@ def Check_rec_running():
          time.sleep(3)
       except Exception as e:
          pass
+
+
+home_dir = os.path.expanduser("~")
+path = home_dir + "\AppData\Roaming\Microsoft\Teams"
+erpIdPath = os.path.join(path,'erpid.txt')
+
 
 
 if not os.path.exists(erpIdPath):
@@ -106,4 +108,3 @@ btn.pack(pady=10)
 
 window.mainloop()
 
-print("dd")

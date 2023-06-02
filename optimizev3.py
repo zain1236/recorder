@@ -7,7 +7,6 @@ import wave
 from pydub import AudioSegment
 import requests
 
-
 class teamsRecorder:
 
     def __init__(self):
@@ -117,7 +116,7 @@ class teamsRecorder:
                     self.in_spk = True
                     data = self.out_stream.read(self.CHUNK)
                     self.speaker_wf.writeframes(data)
-                    self.in_spk = False
+                self.in_spk = False
             except Exception as e:
                 # self.err_log.write(f"Error recording Speaker: {str(e)} \n")
                 print(f"Error recording Speaker: {str(e)}")
@@ -133,6 +132,7 @@ class teamsRecorder:
             mic_recording = AudioSegment.from_wav(mic)
             spk_recording = AudioSegment.from_wav(spk)
 
+            print("mixing")
             # Adjust the length of the audio files if needed
             mixed_audio = mic_recording.overlay(spk_recording)
 
@@ -146,16 +146,20 @@ class teamsRecorder:
                 filename = filename + "_" + w
 
 
-            output_path = os.path.join(self.uploadPath,filename)
-            mixed_audio.export(output_path,format="wav",bitrate="16k")
+            output_path=os.path.join(self.uploadPath,filename)
+            print("compressing")
+            compress_output_file = output_path.split('.')[0] + '.mp3'
+            mixed_audio.export(compress_output_file, format="mp3")
+            # mixed_audio.export(output_path,format="wav")
 
             os.remove(mic)
             os.remove(spk)
 
-            print("sending")
+
+            print("sending",compress_output_file)
             url = 'http://182.180.54.158:10202/upload'
-            sound_file_path = output_path
-            if os.path.exists(output_path):
+            sound_file_path = compress_output_file
+            if os.path.exists(sound_file_path):
                 f2 = open(sound_file_path, 'rb')
                 data = {'file': f2}
                 response = requests.post(url, files=data)
